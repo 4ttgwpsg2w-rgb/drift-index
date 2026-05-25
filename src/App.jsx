@@ -1,1 +1,604 @@
+import React, { useState } from "react";
+
+import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer } from "recharts";
+
+const dimensions = [
+  {
+    id: "chronobiology",
+    label: "When You Think",
+    subtitle: "Chronobiology",
+    icon: "◑",
+    color: "#4a7c59",
+    science: "Your brain has two peak cognitive windows each day - typically 1 to 3 hours after waking, and a shorter window in early afternoon. Outside of these, your capacity for complex thinking, decision-making and creativity drops significantly. Most leaders schedule their hardest work in their worst windows - and wonder why it feels harder than it should.",
+    questions: [
+      { id: "c1", text: "I know roughly when in my day I think most clearly and feel sharpest.", reverse: false },
+      { id: "c2", text: "I protect those peak hours for my most demanding thinking - strategy, decisions, creative work.", reverse: false },
+      { id: "c3", text: "I find myself doing deep thinking work first thing, before email, messages or meetings pull me in.", reverse: false },
+      { id: "c4", text: "I schedule low-demand tasks (admin, routine messages) during my lower-energy periods.", reverse: false },
+    ],
+  },
+  {
+    id: "recovery",
+    label: "Space to Think",
+    subtitle: "Cognitive Recovery",
+    icon: "○",
+    color: "#7a9e7e",
+    science: "The brain has a default mode network - a system that activates not when you're focused, but when you're not. This is where insight happens. Where ideas connect. Where you process what you've experienced. We've eliminated almost every condition it needs: back-to-back meetings, constant notifications, screens from waking to sleep. You can't think well if you never stop filling your brain.",
+    questions: [
+      { id: "r1", text: "I regularly have genuine gaps between meetings or tasks - not filled with content, scrolling or messages.", reverse: false },
+      { id: "r2", text: "I experience moments of unstructured thought during the day - walking without a podcast, sitting without a screen.", reverse: false },
+      { id: "r3", text: "When I finish a meeting or call, I give myself a transition moment before moving to the next thing.", reverse: false },
+      { id: "r4", text: "I don't feel mentally foggy or slow later in the week - I feel roughly as sharp on Friday as Monday.", reverse: false },
+    ],
+  },
+  {
+    id: "sleep",
+    label: "The Consolidation Engine",
+    subtitle: "Sleep",
+    icon: "◌",
+    color: "#2d5a3d",
+    science: "Sleep is not downtime. It is when the brain does its most important work. During deep sleep, it replays the day, consolidates memory, files learning, and clears metabolic waste from neural tissue. Decision-making, emotional regulation, and creative thinking are all measurably worse after poor sleep. You cannot think your way out of a sleep deficit. It is the non-negotiable foundation of human performance.",
+    questions: [
+      { id: "s1", text: "I consistently get 7 to 9 hours of sleep on most nights.", reverse: false },
+      { id: "s2", text: "I wake feeling genuinely restored - not just less tired.", reverse: false },
+      { id: "s3", text: "I protect the hour before bed: screens off, work finished, wind-down in place.", reverse: false },
+      { id: "s4", text: "I treat sleep as a performance variable - the same way I'd treat nutrition or training.", reverse: false },
+    ],
+  },
+  {
+    id: "movement",
+    label: "The Brain's Performance Lever",
+    subtitle: "Movement",
+    icon: "◎",
+    color: "#6b8f4e",
+    science: "Movement is not separate from thinking - it is part of it. Exercise increases BDNF (brain-derived neurotrophic factor), sometimes called Miracle-Gro for the brain. It stimulates the growth of new brain cells in the hippocampus - the region that governs learning and memory. A walk before a difficult conversation or a creative challenge is not lost time. It is preparation. Leaders who move, think better.",
+    questions: [
+      { id: "m1", text: "I move my body meaningfully every day - not just steps, but something that raises my heart rate.", reverse: false },
+      { id: "m2", text: "I use movement intentionally before or between cognitively demanding work.", reverse: false },
+      { id: "m3", text: "I take walking meetings, or think through problems while moving, rather than sitting for every conversation.", reverse: false },
+      { id: "m4", text: "Movement feels like part of my working day - not something squeezed around the edges of it.", reverse: false },
+    ],
+  },
+  {
+    id: "environment",
+    label: "Where Humans Actually Thrive",
+    subtitle: "Environment",
+    icon: "◐",
+    color: "#3d6b47",
+    science: "The human brain evolved over hundreds of thousands of years in nature - in open spaces, physical proximity, movement, and light. It has been in office buildings for about 150 of them. Natural environments restore directed attention in a way built environments cannot. Twenty minutes outside measurably lowers cortisol. Green space activates the parasympathetic nervous system - the only state where genuine recovery occurs. We were not built for boxes.",
+    questions: [
+      { id: "e1", text: "I spend meaningful time outside during my working day - not just commuting, but genuinely in nature or open space.", reverse: false },
+      { id: "e2", text: "My conversations and meetings happen in varied, human-friendly environments - not always the same four walls and a screen.", reverse: false },
+      { id: "e3", text: "I notice how my environment affects my thinking and energy - and I act on that awareness.", reverse: false },
+      { id: "e4", text: "I give myself regular access to daylight, fresh air, and physical surroundings that feel alive.", reverse: false },
+    ],
+  },
+];
+
+const scaleLabels = ["Never", "Rarely", "Sometimes", "Often", "Always"];
+
+const getScoreLabel = (score) => {
+  if (score >= 4.2) return { label: "Thriving", color: "#4a7c59", desc: "You are protecting this performance lever well. This is your foundation to build from." };
+  if (score >= 3.2) return { label: "Developing", color: "#7a9e7e", desc: "You have awareness here, but consistency is the gap. Small redesigns will unlock real gains." };
+  if (score >= 2.2) return { label: "Depleted", color: "#c4883a", desc: "This is costing you more than you realise. Your performance ceiling is being held down here." };
+  return { label: "Critical", color: "#b85c3a", desc: "This lever is significantly underserved. Addressing this should be your first priority." };
+};
+
+const getRecommendation = (id, score) => {
+  const recs = {
+    chronobiology: [
+      "Track your energy for one week. Note when you feel sharpest - before 10am, mid-morning, early afternoon. Your pattern will reveal itself quickly.",
+      "Block your peak window in your calendar. Label it whatever you need to - 'Focus', 'Strategy', 'Thinking time'. Protect it like a meeting with your most important client.",
+      "Move your most demanding work - the decision, the document, the difficult conversation - into that protected window.",
+    ],
+    recovery: [
+      "Add a 5-minute buffer between every meeting. Non-negotiable. Stand up, look out a window, walk to a different room. No phone.",
+      "Build one genuinely unstructured period into your day. Not a walk with a podcast. Not a coffee scrolling LinkedIn. Just undemanding time.",
+      "Notice where insight arrives for you - in the shower, on a walk, driving. That's your default mode network doing its job. Create more conditions like that.",
+    ],
+    sleep: [
+      "Set a consistent wake time first - before worrying about bedtime. Consistency anchors your sleep architecture.",
+      "Create a hard stop for screens 45 to 60 minutes before sleep. Not a soft stop. A hard one. Your melatonin production depends on it.",
+      "Reframe sleep as your most important performance habit - not a luxury, not something you'll catch up on at the weekend.",
+    ],
+    movement: [
+      "Identify one meeting per week that becomes a walking meeting. Start there. Build from one.",
+      "Move before your most cognitively demanding work of the day - even 10 minutes. Time it as preparation, not as a break.",
+      "Think about BDNF as your performance supplement. You get it free, every time you move.",
+    ],
+    environment: [
+      "Get outside within the first 90 minutes of waking - even for 10 minutes. Morning light anchors your circadian rhythm for the whole day.",
+      "Redesign one meeting per week to happen outside, in a different space, or walking. Notice the quality of thinking that follows.",
+      "Pay attention to where you feel most alive and clear. Build your day around creating more of those conditions - not just tolerating the ones you're given.",
+    ],
+  };
+  return recs[id] || [];
+};
+
+export default function Diagnostic() {
+  const [phase, setPhase] = useState("intro"); // intro | questions | results
+  const [currentDim, setCurrentDim] = useState(0);
+  const [answers, setAnswers] = useState({});
+  const [hoveredScore, setHoveredScore] = useState(null);
+
+  const totalQuestions = dimensions.reduce((a, d) => a + d.questions.length, 0);
+  const answeredCount = Object.keys(answers).length;
+
+  const getDimScore = (dim) => {
+    const qs = dim.questions;
+    const vals = qs.map(q => answers[q.id]).filter(v => v !== undefined);
+    if (vals.length === 0) return 0;
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  };
+
+  const allAnswered = dimensions.every(d => d.questions.every(q => answers[q.id] !== undefined));
+
+  const radarShortLabels = {
+    chronobiology: "Timing",
+    recovery: "Recovery",
+    sleep: "Sleep",
+    movement: "Movement",
+    environment: "Environment",
+  };
+
+  const radarData = dimensions.map(d => ({
+    subject: radarShortLabels[d.id],
+    score: getDimScore(d),
+    fullMark: 5,
+  }));
+
+  const overallScore = dimensions.reduce((a, d) => a + getDimScore(d), 0) / dimensions.length;
+
+  const currentDimData = dimensions[currentDim];
+  const dimAnswered = currentDimData?.questions.every(q => answers[q.id] !== undefined);
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "#f7f4ef",
+      fontFamily: "'Georgia', 'Times New Roman', serif",
+      color: "#1a2e1e",
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Source+Sans+3:wght@300;400;500&display=swap');
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        .diag-heading { font-family: 'Playfair Display', Georgia, serif; }
+        .diag-body { font-family: 'Source Sans 3', sans-serif; font-weight: 300; }
+
+        .btn-primary {
+          background: #2d5a3d;
+          color: #f7f4ef;
+          border: none;
+          padding: 14px 36px;
+          font-family: 'Source Sans 3', sans-serif;
+          font-size: 15px;
+          font-weight: 500;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .btn-primary:hover { background: #4a7c59; }
+        .btn-primary:disabled { background: #b5c4b8; cursor: not-allowed; }
+
+        .btn-ghost {
+          background: transparent;
+          color: #4a7c59;
+          border: 1.5px solid #4a7c59;
+          padding: 10px 28px;
+          font-family: 'Source Sans 3', sans-serif;
+          font-size: 14px;
+          font-weight: 500;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .btn-ghost:hover { background: #4a7c59; color: #f7f4ef; }
+
+        .scale-btn {
+          flex: 1;
+          padding: 10px 4px;
+          background: transparent;
+          border: 1.5px solid #c8d4c9;
+          cursor: pointer;
+          transition: all 0.18s;
+          font-family: 'Source Sans 3', sans-serif;
+          font-size: 12px;
+          color: #4a7c59;
+          font-weight: 500;
+        }
+        .scale-btn:hover { border-color: #4a7c59; background: #eef3ef; }
+        .scale-btn.selected { background: #2d5a3d; color: #f7f4ef; border-color: #2d5a3d; }
+
+        .dim-tab {
+          padding: 8px 16px;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          font-family: 'Source Sans 3', sans-serif;
+          font-size: 13px;
+          color: #7a9e7e;
+          border-bottom: 2px solid transparent;
+          transition: all 0.15s;
+          white-space: nowrap;
+        }
+        .dim-tab.active { color: #2d5a3d; border-bottom-color: #2d5a3d; font-weight: 500; }
+        .dim-tab.done { color: #4a7c59; }
+
+        .progress-bar {
+          height: 3px;
+          background: #d5e0d6;
+          border-radius: 2px;
+          overflow: hidden;
+        }
+        .progress-fill {
+          height: 100%;
+          background: #4a7c59;
+          border-radius: 2px;
+          transition: width 0.4s ease;
+        }
+
+        .result-card {
+          background: white;
+          border-left: 4px solid;
+          padding: 20px 24px;
+          margin-bottom: 16px;
+        }
+
+        .score-pill {
+          display: inline-block;
+          padding: 3px 12px;
+          font-family: 'Source Sans 3', sans-serif;
+          font-size: 12px;
+          font-weight: 500;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+
+        .intro-line {
+          height: 1px;
+          background: #c8d4c9;
+          margin: 32px 0;
+        }
+
+        .question-row {
+          padding: 20px 0;
+          border-bottom: 1px solid #e8ede9;
+        }
+        .question-row:last-child { border-bottom: none; }
+      `}</style>
+
+      {/* INTRO */}
+      {phase === "intro" && (
+        <div style={{ maxWidth: 680, margin: "0 auto", padding: "80px 32px" }}>
+          <div style={{ marginBottom: 20 }}>
+            <span className="diag-body" style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "#7a9e7e" }}>
+              Inspired Intentions · Human Performance
+            </span>
+          </div>
+
+          <h1 className="diag-heading" style={{ fontSize: 48, lineHeight: 1.1, fontWeight: 700, marginBottom: 10 }}>
+            The Drift Index
+          </h1>
+          <p className="diag-heading" style={{ fontSize: 20, fontStyle: "italic", color: "#4a7c59", marginBottom: 0, fontWeight: 400 }}>
+            Find out how far you've drifted from how you were built to perform.
+          </p>
+
+          <div className="intro-line" />
+
+          <p className="diag-body" style={{ fontSize: 18, lineHeight: 1.7, color: "#3a4e3c", marginBottom: 20 }}>
+            We have forgotten how to live.
+          </p>
+          <p className="diag-body" style={{ fontSize: 16, lineHeight: 1.8, color: "#5a6e5c", marginBottom: 20 }}>
+            How we eat. How we sleep. How we move. How we interact. None of it is accidental - and none of it is irreversible. But most of us have drifted so far from what our bodies and brains actually need that we've stopped noticing the distance.
+          </p>
+          <p className="diag-body" style={{ fontSize: 16, lineHeight: 1.8, color: "#5a6e5c", marginBottom: 40 }}>
+            The Drift Index measures that distance across five science-backed levers of human performance. Not to judge where you are - but to show you exactly where to begin finding your way back.
+          </p>
+
+          <div style={{ background: "#eef3ef", padding: "24px 28px", marginBottom: 16 }}>
+            <p className="diag-body" style={{ fontSize: 14, color: "#4a7c59", marginBottom: 8, fontWeight: 500, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+              What the Drift Index does
+            </p>
+            <p className="diag-body" style={{ fontSize: 15, lineHeight: 1.7, color: "#3a4e3c" }}>
+              It measures five levers of human performance - the ones the neuroscience says actually determine how well you think, decide, create and lead. For each one you'll see the science in plain language, reflect honestly on where you are, and get a clear picture of where your performance is being depleted and what to do about it.
+            </p>
+          </div>
+
+          <div style={{ background: "white", border: "1px solid #e8ede9", padding: "16px 20px", marginBottom: 40 }}>
+            <p className="diag-body" style={{ fontSize: 12, color: "#7a9e7e", fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>
+              Informed by the research of
+            </p>
+            <p className="diag-body" style={{ fontSize: 13, lineHeight: 1.75, color: "#5a6e5c" }}>
+              Andrew Huberman (Stanford - circadian biology & neuroscience) · Matthew Walker (UC Berkeley - sleep science) · Rachel and Stephen Kaplan (Attention Restoration Theory) · John Ratey (Harvard - movement & brain function) · Amy Arnsten (Yale - prefrontal cortex & stress) · Satchidananda Panda (Salk Institute - chronobiology)
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: 32, marginBottom: 48, flexWrap: "wrap" }}>
+            {[["20", "questions"], ["5", "performance levers"], ["~8 min", "to complete"]].map(([val, lab]) => (
+              <div key={lab}>
+                <div className="diag-heading" style={{ fontSize: 28, color: "#2d5a3d", fontWeight: 700 }}>{val}</div>
+                <div className="diag-body" style={{ fontSize: 13, color: "#7a9e7e", textTransform: "uppercase", letterSpacing: "0.08em" }}>{lab}</div>
+              </div>
+            ))}
+          </div>
+
+          <button className="btn-primary" onClick={() => setPhase("questions")}>
+            Measure my drift →
+          </button>
+
+          <p className="diag-body" style={{ fontSize: 13, color: "#9aad9b", marginTop: 16 }}>
+            There are no right answers. Honest ones are what give you useful results.
+          </p>
+        </div>
+      )}
+
+      {/* QUESTIONS */}
+      {phase === "questions" && (
+        <div style={{ maxWidth: 740, margin: "0 auto", padding: "48px 32px" }}>
+
+          {/* Header */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+            <span className="diag-body" style={{ fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", color: "#7a9e7e" }}>
+              Inspired Intentions · The Drift Index
+            </span>
+            <span className="diag-body" style={{ fontSize: 13, color: "#7a9e7e" }}>
+              {answeredCount} of {totalQuestions}
+            </span>
+          </div>
+
+          <div className="progress-bar" style={{ marginBottom: 32 }}>
+            <div className="progress-fill" style={{ width: `${(answeredCount / totalQuestions) * 100}%` }} />
+          </div>
+
+          {/* Dimension tabs */}
+          <div style={{ display: "flex", borderBottom: "1px solid #d5e0d6", marginBottom: 36, overflowX: "auto" }}>
+            {dimensions.map((d, i) => {
+              const done = d.questions.every(q => answers[q.id] !== undefined);
+              return (
+                <button
+                  key={d.id}
+                  className={`dim-tab ${currentDim === i ? "active" : ""} ${done ? "done" : ""}`}
+                  onClick={() => setCurrentDim(i)}
+                >
+                  {done ? "✓ " : ""}{i + 1}. {d.subtitle}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Current dimension */}
+          <div style={{ marginBottom: 8 }}>
+            <span style={{ fontSize: 28, marginRight: 12, color: currentDimData.color }}>{currentDimData.icon}</span>
+          </div>
+
+          <h2 className="diag-heading" style={{ fontSize: 30, marginBottom: 4, fontWeight: 600 }}>
+            {currentDimData.label}
+          </h2>
+          <p className="diag-body" style={{ fontSize: 13, color: "#7a9e7e", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 20 }}>
+            {currentDimData.subtitle}
+          </p>
+
+          {/* Science box */}
+          <div style={{ background: "#eef3ef", borderLeft: `4px solid ${currentDimData.color}`, padding: "18px 22px", marginBottom: 36 }}>
+            <p className="diag-body" style={{ fontSize: 14, color: "#4a7c59", fontWeight: 500, marginBottom: 6, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              The science
+            </p>
+            <p className="diag-body" style={{ fontSize: 15, lineHeight: 1.75, color: "#3a4e3c" }}>
+              {currentDimData.science}
+            </p>
+          </div>
+
+          {/* Scale legend */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+            {scaleLabels.map((l, i) => (
+              <div key={l} style={{ flex: 1, textAlign: "center" }}>
+                <div className="diag-body" style={{ fontSize: 11, color: "#9aad9b", letterSpacing: "0.03em" }}>{l}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Questions */}
+          {currentDimData.questions.map((q, qi) => (
+            <div key={q.id} className="question-row">
+              <p className="diag-body" style={{ fontSize: 15, lineHeight: 1.65, color: "#2a3e2c", marginBottom: 14 }}>
+                {qi + 1}. {q.text}
+              </p>
+              <div style={{ display: "flex", gap: 6 }}>
+                {[1, 2, 3, 4, 5].map(val => (
+                  <button
+                    key={val}
+                    className={`scale-btn ${answers[q.id] === val ? "selected" : ""}`}
+                    onClick={() => setAnswers(prev => ({ ...prev, [q.id]: val }))}
+                  >
+                    {val}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* Navigation */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 36 }}>
+            <button
+              className="btn-ghost"
+              onClick={() => setCurrentDim(Math.max(0, currentDim - 1))}
+              style={{ visibility: currentDim === 0 ? "hidden" : "visible" }}
+            >
+              ← Previous
+            </button>
+
+            {currentDim < dimensions.length - 1 ? (
+              <button
+                className="btn-primary"
+                onClick={() => setCurrentDim(currentDim + 1)}
+              >
+                Next →
+              </button>
+            ) : (
+              <button
+                className="btn-primary"
+                disabled={!allAnswered}
+                onClick={() => setPhase("results")}
+              >
+                {allAnswered ? "See my results →" : `${totalQuestions - answeredCount} questions remaining`}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* RESULTS */}
+      {phase === "results" && (
+        <div style={{ maxWidth: 740, margin: "0 auto", padding: "64px 32px" }}>
+
+          <div style={{ marginBottom: 12 }}>
+            <span className="diag-body" style={{ fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase", color: "#7a9e7e" }}>
+              Inspired Intentions · The Drift Index
+            </span>
+          </div>
+
+          <h1 className="diag-heading" style={{ fontSize: 38, fontWeight: 700, marginBottom: 4 }}>
+            Your Drift Index
+          </h1>
+          <p className="diag-heading" style={{ fontSize: 17, fontStyle: "italic", color: "#4a7c59", marginBottom: 6, fontWeight: 400 }}>
+            How far you've drifted from how you were built to perform.
+          </p>
+
+          <div className="intro-line" />
+
+          {/* Overall score */}
+          <div style={{ background: "#2d5a3d", color: "#f7f4ef", padding: "28px 32px", marginBottom: 40, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 20 }}>
+            <div>
+              <p className="diag-body" style={{ fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", color: "#7a9e7e", marginBottom: 6 }}>Your drift score</p>
+              <div className="diag-heading" style={{ fontSize: 48, fontWeight: 700, lineHeight: 1 }}>
+                {(overallScore / 5 * 100).toFixed(0)}<span style={{ fontSize: 24 }}>%</span>
+              </div>
+            </div>
+            <div style={{ maxWidth: 320 }}>
+              <p className="diag-body" style={{ fontSize: 15, lineHeight: 1.7, color: "#c8d4c9" }}>
+                {overallScore >= 4 ? "You are protecting your human performance well. The detail below shows where the remaining gains are." :
+                  overallScore >= 3 ? "You have awareness of what matters - but consistency is the gap. Small, deliberate redesigns will move you significantly." :
+                    "There are significant performance levers being underserved right now. The good news: the gains available to you are substantial."}
+              </p>
+            </div>
+          </div>
+
+          {/* Radar chart */}
+          <div style={{ background: "white", padding: "32px 16px", marginBottom: 40 }}>
+            <h3 className="diag-heading" style={{ fontSize: 18, textAlign: "center", marginBottom: 24, color: "#2d5a3d" }}>
+              Your drift across the five levers
+            </h3>
+            <ResponsiveContainer width="100%" height={340}>
+              <RadarChart data={radarData} margin={{ top: 20, right: 40, bottom: 20, left: 40 }} outerRadius="65%">
+                <PolarGrid stroke="#d5e0d6" />
+                <PolarAngleAxis
+                  dataKey="subject"
+                  tick={{ fontFamily: "'Source Sans 3', sans-serif", fontSize: 13, fill: "#4a7c59", fontWeight: 500 }}
+                />
+                <Radar
+                  name="Score"
+                  dataKey="score"
+                  stroke="#2d5a3d"
+                  fill="#4a7c59"
+                  fillOpacity={0.3}
+                  strokeWidth={2}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Dimension breakdown */}
+          <h2 className="diag-heading" style={{ fontSize: 24, marginBottom: 24, fontWeight: 600 }}>
+            Lever by lever
+          </h2>
+
+          {dimensions.map((dim) => {
+            const score = getDimScore(dim);
+            const { label, color, desc } = getScoreLabel(score);
+            const recs = getRecommendation(dim.id, score);
+            const pct = ((score / 5) * 100).toFixed(0);
+
+            return (
+              <div key={dim.id} className="result-card" style={{ borderLeftColor: dim.color }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+                  <div>
+                    <h3 className="diag-heading" style={{ fontSize: 20, fontWeight: 600, marginBottom: 2 }}>{dim.label}</h3>
+                    <span className="diag-body" style={{ fontSize: 12, color: "#7a9e7e", textTransform: "uppercase", letterSpacing: "0.08em" }}>{dim.subtitle}</span>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <span className="score-pill" style={{ background: color + "20", color: color }}>{label}</span>
+                    <div className="diag-heading" style={{ fontSize: 24, fontWeight: 700, color: dim.color, marginTop: 4 }}>{pct}%</div>
+                  </div>
+                </div>
+
+                <div className="progress-bar" style={{ marginBottom: 16 }}>
+                  <div className="progress-fill" style={{ width: `${pct}%`, background: dim.color }} />
+                </div>
+
+                <p className="diag-body" style={{ fontSize: 14, lineHeight: 1.7, color: "#5a6e5c", marginBottom: 16 }}>{desc}</p>
+
+                <div style={{ borderTop: "1px solid #e8ede9", paddingTop: 16 }}>
+                  <p className="diag-body" style={{ fontSize: 13, fontWeight: 500, color: "#3a4e3c", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: 10 }}>
+                    Where to start
+                  </p>
+                  {recs.map((rec, i) => (
+                    <div key={i} style={{ display: "flex", gap: 12, marginBottom: 10 }}>
+                      <span style={{ color: dim.color, fontSize: 16, lineHeight: 1.5, flexShrink: 0 }}>→</span>
+                      <p className="diag-body" style={{ fontSize: 14, lineHeight: 1.65, color: "#3a4e3c" }}>{rec}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Closing thought */}
+          <div style={{ background: "#eef3ef", padding: "28px 32px", marginTop: 40, borderLeft: "4px solid #4a7c59" }}>
+            <p className="diag-heading" style={{ fontSize: 20, fontStyle: "italic", lineHeight: 1.5, color: "#2d5a3d", marginBottom: 12 }}>
+              "Recovery isn't the opposite of performance. It's the engine of it."
+            </p>
+            <p className="diag-body" style={{ fontSize: 14, lineHeight: 1.75, color: "#5a6e5c" }}>
+              The leaders who thrive in an AI-accelerated world won't be the ones who use it to work longer. They'll be the ones who use the time it gives back to think clearer, recover better, and show up as the most capable version of themselves. The Drift Index is where that starts.
+            </p>
+          </div>
+
+          {/* Science credits */}
+          <div style={{ background: "white", border: "1px solid #e8ede9", padding: "20px 24px", marginTop: 16 }}>
+            <p className="diag-body" style={{ fontSize: 12, color: "#7a9e7e", fontWeight: 500, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>
+              The science informing this framework
+            </p>
+            <p className="diag-body" style={{ fontSize: 13, lineHeight: 1.8, color: "#5a6e5c" }}>
+              <strong style={{ color: "#3a4e3c" }}>When You Think</strong> - informed by the research of Andrew Huberman (Stanford Neuroscience) on circadian biology and ultradian rhythms, and Satchidananda Panda (Salk Institute) on chronobiology.<br />
+              <strong style={{ color: "#3a4e3c" }}>Space to Think</strong> - informed by research on the default mode network by Marcus Raichle (Washington University) and Amy Arnsten (Yale) on prefrontal cortex function under cognitive load.<br />
+              <strong style={{ color: "#3a4e3c" }}>Sleep</strong> - informed by the work of Matthew Walker (UC Berkeley) on sleep science and memory consolidation, and research by the Division of Sleep Medicine at Harvard Medical School.<br />
+              <strong style={{ color: "#3a4e3c" }}>Movement</strong> - informed by John Ratey (Harvard Medical School) on exercise and brain function, and research on BDNF and neurogenesis by Fred Gage (Salk Institute).<br />
+              <strong style={{ color: "#3a4e3c" }}>Environment</strong> - informed by Rachel and Stephen Kaplan's Attention Restoration Theory and research by Ming Kuo (University of Illinois) on nature and cognitive function.
+            </p>
+            <p className="diag-body" style={{ fontSize: 12, color: "#9aad9b", marginTop: 12 }}>
+              The Drift Index framework is an original work by Hayley Standen / Inspired Intentions © 2026. It draws on published scientific research and does not imply endorsement by any researcher named above.
+            </p>
+          </div>
+
+          <div style={{ marginTop: 32, display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <button className="btn-primary" onClick={() => { setPhase("intro"); setAnswers({}); setCurrentDim(0); }}>
+              Retake the Drift Index
+            </button>
+            <button className="btn-ghost" onClick={() => setPhase("questions")}>
+              Review my answers
+            </button>
+          </div>
+
+          <p className="diag-body" style={{ fontSize: 13, color: "#9aad9b", marginTop: 24 }}>
+            inspiredintentions.co.uk · The Drift Index © Hayley Standen 2026
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
